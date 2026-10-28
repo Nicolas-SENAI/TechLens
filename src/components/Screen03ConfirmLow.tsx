@@ -169,3 +169,4 @@ export const Screen03ConfirmLow: React.FC<Screen03ConfirmLowProps> = ({
     </div>
   );
 };
+

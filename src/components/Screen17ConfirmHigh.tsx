@@ -143,3 +143,4 @@ export const Screen17ConfirmHigh: React.FC<Screen17ConfirmHighProps> = ({
     </div>
   );
 };
+

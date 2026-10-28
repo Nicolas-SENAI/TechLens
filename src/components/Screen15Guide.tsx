@@ -454,9 +454,14 @@ export const Screen15Guide: React.FC<Screen15GuideProps> = ({
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-500 font-medium">
+                    <span className="text-xs text-slate-500 font-medium block">
                       Produto {store.condition} • Em Estoque
                     </span>
+                    {store.consultadoEm && (
+                      <span className="text-[11px] text-slate-400 block font-medium">
+                        Preço consultado em: {new Date(store.consultadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-right">
@@ -510,3 +515,4 @@ export const Screen15Guide: React.FC<Screen15GuideProps> = ({
     </div>
   );
 };
+

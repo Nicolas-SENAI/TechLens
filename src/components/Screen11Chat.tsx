@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Device, ScreenId } from '../types';
 import { speechService } from '../services/speechService';
+import { getChatMessages, sendChatMessage } from '../services/api';
 
 interface ChatMessage {
   id: string;
@@ -46,31 +47,70 @@ export const Screen11Chat: React.FC<Screen11ChatProps> = ({
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Carrega histórico de mensagens persistidas da pesquisa se houver pesquisaId
+  useEffect(() => {
+    if (device.pesquisaId) {
+      getChatMessages(device.pesquisaId)
+        .then((msgs) => {
+          if (msgs && msgs.length > 0) {
+            const formatted: ChatMessage[] = msgs.map(m => ({
+              id: `msg-${m.id}`,
+              sender: m.autor === 'usuario' ? 'user' : 'assistant',
+              text: m.conteudo,
+              timestamp: new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            }));
+            setMessages(formatted);
+          }
+        })
+        .catch(err => {
+          console.warn('Não foi possível carregar mensagens anteriores do chat:', err);
+        });
+    }
+  }, [device.pesquisaId]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputValue;
     if (!text.trim()) return;
 
-    const userMsg: ChatMessage = {
+    const userTimestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const tempUserMsg: ChatMessage = {
       id: 'usr-' + Date.now(),
       sender: 'user',
       text: text.trim(),
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      timestamp: userTimestamp
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, tempUserMsg]);
     if (!textToSend) setInputValue('');
     setIsTyping(true);
 
-    // Simulate intelligent, warm contextual response
+    // Se temos pesquisaId registrada no backend, envia pela API (persiste no MySQL)
+    if (device.pesquisaId) {
+      try {
+        const res = await sendChatMessage(device.pesquisaId, text.trim());
+        const assistantMsg: ChatMessage = {
+          id: `ast-${res.resposta_ia.id}`,
+          sender: 'assistant',
+          text: res.resposta_ia.conteudo,
+          timestamp: new Date(res.resposta_ia.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        setIsTyping(false);
+        return;
+      } catch (err) {
+        console.warn('Erro ao enviar mensagem via API, gerando resposta local...', err);
+      }
+    }
+
+    // Fallback simulado local
     setTimeout(() => {
       let responseText = '';
       const lower = text.toLowerCase();
 
-      // Check common questions first
       const matched = device.commonQuestions?.find(q => 
         lower.includes(q.question.toLowerCase().slice(0, 15)) ||
         (lower.includes('bateria') && q.question.toLowerCase().includes('bateria')) ||
@@ -100,7 +140,7 @@ export const Screen11Chat: React.FC<Screen11ChatProps> = ({
 
       setMessages((prev) => [...prev, assistantMsg]);
       setIsTyping(false);
-    }, 1200);
+    }, 1000);
   };
 
   const handleReadAloud = (id: string, text: string) => {

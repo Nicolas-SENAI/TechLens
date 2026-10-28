@@ -263,3 +263,4 @@ export const Screen07Diagnostics: React.FC<Screen07DiagnosticsProps> = ({
     </div>
   );
 };
+

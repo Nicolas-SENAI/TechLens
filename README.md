@@ -4,69 +4,134 @@
 
 ---
 
-## 🚀 Sobre o Projeto
+## 🏛️ Arquitetura da Solução
 
-O **TechLens** foi concebido sob rigorosos princípios de acessibilidade (**WCAG 2.1 AAA**), redução de ansiedade e transparência ética. Ele permite que qualquer pessoa — como a **Dona Maria (68 anos)** ou o **Carlos (45 anos)** — aponte a câmera para um aparelho, cabo ou conector desconhecido e receba uma explicação em português simples, com metáforas práticas, passo a passo ilustrado, preços de mercado e leitura em áudio por voz.
+O TechLens foi estruturado com uma separação clara entre **Front-end (React + TypeScript + Tailwind CSS)** e **Back-end (Node.js + Express + MySQL)**, seguindo a arquitetura em camadas:
+
+```
+[ Front-end (React 19 / Vite) ]
+          │
+          │ HTTP / JSON (Header: X-Device-Id)
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Back-end Express (Node.js)                                  │
+│                                                             │
+│ 1. Middlewares (deviceIdMiddleware, errorHandler)           │
+│ 2. Rotas (/api/dispositivos, /api/pesquisas, /api/produtos) │
+│ 3. Controllers (dispositivo, pesquisa, produto, chat)       │
+│ 4. Services (dispositivo, pesquisa, produto, chat, iaService)│
+│ 5. Repositories (acesso parametrizado via mysql2 pool)      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Pool de Conexões (utf8mb4)
+                               ▼
+                [ Banco de Dados MySQL Local ]
+```
 
 ---
 
-## 🎨 Design System: Modern Bio-Tech
+## 📊 Modelo de Dados Relacional (MySQL)
 
-- **Tipografia:** Plus Jakarta Sans (alta legibilidade em diferentes escalas)
-- **Paleta de Cores:**
-  - **Azul Primário (`#2563EB`)**: Ações principais, links e avanço
-  - **Violeta IA (`#7C3AED` / `#6D28D9`)**: Identificação por inteligência artificial e assistente conversacional
-  - **Verde Menta (`#10B981`)**: Confirmação positiva, preços seguros e alertas de segurança
-  - **Superfície:** Fundo suave (`#FAFAFC` / `#FAF8FF`) com contraste tipográfico superior a 7:1
-- **Acessibilidade Nativa (WCAG AAA):**
-  - Controles dinâmicos de tamanho de fonte (`A-` e `A+`)
-  - Alternador de Alto Contraste
-  - Botão de leitura por voz (**Web Speech API - Text-to-Speech**)
-  - Áreas de toque com altura mínima de 48px
+O banco de dados utiliza o charset **`utf8mb4`** e collation **`utf8mb4_unicode_ci`** em todas as tabelas:
 
----
-
-## 📱 Mapeamento Completo das 10 Telas do PRD
-
-| # | Tela | ID PRD | Funcionalidades Principais |
+| Tabela | Chave Primária | Chaves Estrangeiras & Regras | Descrição |
 |---|---|---|---|
-| **01** | **Início e Captura de Imagem** | `SCREEN_21` | Captura ao vivo pela câmera (Webcam/Mobile via `getUserMedia`), upload de arquivos (.jpg, .png, .webp), busca digitada direta (RF-03), modal de consentimento de privacidade no 1º uso (RF-02) e exemplos de teste rápido em 1 clique. |
-| **02** | **Analisando Aparelho com IA** | `SCREEN_19` | Scanner suave com feixe bio-tech sem caixas delimitadoras confusas. Processamento em 2 etapas: (1) Nitidez e luz e (2) Formato e pinos. |
-| **03** | **Confirmação (Alta Certeza)** | `SCREEN_17` | Exibição do modelo identificado com selo de alta chance de acerto (> 80%), fotos e botão vibrante *"Sim, é exatamente este!"*. |
-| **03B**| **Confirmação (Baixa Certeza)** | `SCREEN_3` | Opções de modelos e cabos alternativos parecidos, alerta amigável de cautela e atalho para digitar o nome. |
-| **04** | **Buscando Informações** | `SCREEN_9` | Tela de carregamento pós-confirmação com barra de progresso em 3 etapas com checks dinâmicos (Termos traduzidos, Avaliações e Preços). |
-| **05** | **Guia Completo e Traduzido** | `SCREEN_15` | Dicionário técnico traduzido (RF-06), botão *"Ouvir em Voz Alta"* com animação de ondas sonoras, passo a passo de como ligar pela 1ª vez, avaliações independentes (RF-07) e comparador de preços com data/hora e aviso legal (RF-08). |
-| **06** | **Tire suas Dúvidas (Chat IA)** | `SCREEN_11` | Conversa contextualizada pelo manual do aparelho, perguntas rápidas de 1 clique, áudio para respostas, aviso fixo de segurança e atalho para SAC/0800 gratuito. |
-| **07** | **Histórico de Pesquisas** | `SCREEN_13` | Registros armazenados localmente no navegador (`localStorage`), filtros por categoria, busca textual, exclusão em 2 etapas com modal (RF-10) e suporte total a navegação offline (RF-11). |
-| **08** | **Privacidade e Proteção (LGPD)** | `SCREEN_5` | Explicação de que a IA analisa somente contornos e pinos, guia visual do que fotografar vs o que NUNCA fotografar (rostos/documentos) e conformidade LGPD. |
-| **09** | **Central de Diagnóstico & Erros** | `SCREEN_7` | Tratamento humanizado sem códigos de erro técnicos para os 5 cenários comuns: foto escura, objeto não eletrônico, modelo desconhecido, sem internet e instabilidade. Inclui simulador interativo dos 5 cenários. |
+| `dispositivo` | `id` (VARCHAR 36 UUID) | — | Identificador anônimo do dispositivo do usuário (sem login). |
+| `produto` | `id` (INT Auto) | — | Catálogo de aparelhos e cabos eletrônicos. |
+| `especificacao` | `id` (INT Auto) | `produto_id` -> `produto(id)` ON DELETE CASCADE | Especificações técnicas traduzidas para linguagem simples. |
+| `avaliacao_resumo` | `id` (INT Auto) | `produto_id` -> `produto(id)` ON DELETE CASCADE | Síntese de pontos positivos e pontos de atenção. |
+| `fonte` | `id` (INT Auto) | `produto_id` -> `produto(id)` ON DELETE CASCADE | Portais editoriais e fontes independentes. |
+| `comparacao` | `id` (INT Auto) | `produto_id` -> `produto(id)` ON DELETE CASCADE | Produtos semelhantes ou alternativos com diferenças explicadas. |
+| `preco` | `id` (INT Auto) | `produto_id` -> `produto(id)` ON DELETE CASCADE | Cotações em lojas (TechStore Brasil, MegaEletro, Lojas Universo) com carimbo de consulta. |
+| `pesquisa` | `id` (INT Auto) | `dispositivo_id` -> `dispositivo(id)` ON DELETE CASCADE, `produto_id` -> `produto(id)` ON DELETE SET NULL | Histórico de consultas por foto ou texto do dispositivo. |
+| `mensagem_chat` | `id` (INT Auto) | `pesquisa_id` -> `pesquisa(id)` ON DELETE CASCADE | Histórico de mensagens trocadas com a IA sobre a pesquisa. |
+
+### Índices Criados:
+- `idx_pesquisa_dispositivo` em `pesquisa(dispositivo_id)`
+- `idx_pesquisa_produto` em `pesquisa(produto_id)`
+- `idx_pesquisa_criado_em` em `pesquisa(criado_em)`
+- `idx_especificacao_produto` em `especificacao(produto_id)`
+- `idx_preco_produto` e `idx_preco_consultado_em` em `preco`
+- `idx_mensagem_pesquisa` e `idx_mensagem_criado_em` em `mensagem_chat`
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## 📋 Regras de Negócio Implementadas
 
-- **React 19 & TypeScript**
-- **Vite 6**
-- **Tailwind CSS**
-- **Lucide Icons**
-- **Web Speech API (SpeechSynthesis)**
-- **HTML5 Camera Stream (`navigator.mediaDevices.getUserMedia`)**
+1. **Sem Login (Identificação por Dispositivo):** No primeiro acesso, o front-end gera um UUID v4 persistido no `localStorage` e o envia no cabeçalho `X-Device-Id`. Cada usuário acessa apenas suas próprias pesquisas.
+2. **Fotos Efêmeras:** Fotos enviadas pelo usuário trafegam apenas na memória volátil durante a inferência simulada da IA. **Nenhuma foto é salva em disco ou no banco**.
+3. **Reaproveitamento de Dados e Expiração de Preços (24h):** Especificações e avaliações são reaproveitadas. Se a última consulta de preços tiver mais de 24 horas, o serviço busca e persiste automaticamente novas cotações com o timestamp atual.
+4. **Carimbo de Preço:** A data e hora da cotação são registradas no banco e exibidas na tela (*"Preço consultado em..."*).
+5. **Nível de Confiança Estrito:** O nível de confiança retornado e persistido é rigorosamente: `'alta'`, `'media'` ou `'baixa'`.
+6. **Apagar Histórico em Cascata:** Ao limpar o histórico, todas as pesquisas e mensagens de chat vinculadas àquele dispositivo são removidas (`ON DELETE CASCADE`), sem apagar os produtos do catálogo.
+7. **Registro de Privacidade:** Ao aceitar o termo no primeiro uso, a data/hora é registrada em `privacidade_aceita_em` no banco de dados.
+8. **Modo Offline:** O front-end salva automaticamente uma cópia do histórico no `localStorage`. Sem internet, o histórico é exibido a partir dessa cópia e novas pesquisas são bloqueadas com a tela amigável de diagnóstico.
 
 ---
 
-## 💻 Como Rodar Localmente
+## 🚀 Como Instalar e Rodar o Projeto
 
-1. Instalar dependências:
-   ```bash
-   npm install
-   ```
+### 1. Pré-requisitos
+- Node.js 18+ instalado
+- MySQL Server local ativo
 
-2. Iniciar o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
+### 2. Configurar o `.env`
+Crie ou edite o arquivo `.env` na raiz do projeto (baseando-se no `.env.example`):
 
-3. Gerar a build de produção:
-   ```bash
-   npm run build
-   ```
+```env
+PORT=3001
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=techlens
+```
+
+### 3. Criar e Popular o Banco de Dados
+Execute o script automatizado que cria o banco `techlens`, todas as tabelas (`database/schema.sql`) e insere os dados de exemplo (`database/seed.sql`):
+
+```bash
+npm run db:setup
+```
+
+> **Produtos incluídos no Seed:**
+> - Fone Bluetooth SoundMax Pro (com cotações nas lojas fictícias: *TechStore Brasil*, *MegaEletro*, *Lojas Universo*)
+> - Roteador Wi-Fi 6 Dual Band Gigabit
+> - Cabo HDMI 2.1 Ultra High Speed
+> - Smartwatch HealthFit Pulse
+
+### 4. Executar os Testes Automatizados dos Endpoints
+Para testar todos os 10 endpoints da API contra o banco MySQL:
+
+```bash
+npm run test:api
+```
+
+### 5. Iniciar o Back-end
+```bash
+npm run server
+```
+A API estará disponível em `http://localhost:3001`.
+
+### 6. Iniciar o Front-end
+Em outro terminal:
+```bash
+npm run dev
+```
+O front-end estará rodando em `http://localhost:5173` com proxy configurado para redirecionar chamadas `/api` diretamente ao backend!
+
+---
+
+## 📡 Endpoints da API
+
+| Método | Endpoint | Cabeçalhos | Descrição |
+|---|---|---|---|
+| `POST` | `/api/dispositivos` | — | Registra o identificador do dispositivo (`id`). |
+| `PATCH` | `/api/dispositivos/privacidade` | `X-Device-Id` | Registra o aceite do aviso de privacidade (`privacidade_aceita_em`). |
+| `POST` | `/api/pesquisas` | `X-Device-Id` | Cria pesquisa (foto ou texto) e retorna o produto identificado e alternativas (mock IA). |
+| `PATCH` | `/api/pesquisas/:id/confirmar` | `X-Device-Id` | Confirma o produto escolhido e retorna o guia completo. |
+| `GET` | `/api/produtos/:id` | — | Retorna o produto com especificações, avaliações, fontes, comparações e preços (com checagem de 24h). |
+| `GET` | `/api/pesquisas` | `X-Device-Id` | Retorna o histórico de pesquisas do dispositivo (filtro opcional: `?categoria=...`). |
+| `DELETE` | `/api/pesquisas` | `X-Device-Id` | Apaga todo o histórico e conversas do dispositivo (em cascata). |
+| `GET` | `/api/pesquisas/:id/mensagens`| `X-Device-Id` | Retorna o histórico de mensagens de chat da pesquisa. |
+| `POST` | `/api/pesquisas/:id/mensagens`| `X-Device-Id` | Envia dúvida do usuário e gera resposta amigável da IA contextualizada no produto. |
+| `GET` | `/api/health` | — | Verificação de disponibilidade da API. |

@@ -72,3 +72,4 @@ export function clearHistory(): void {
     console.error('Error clearing history in localStorage:', e);
   }
 }
+

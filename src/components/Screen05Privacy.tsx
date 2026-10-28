@@ -190,3 +190,4 @@ export const Screen05Privacy: React.FC<Screen05PrivacyProps> = ({
     </div>
   );
 };
+

@@ -10,10 +10,11 @@ import {
   AlertTriangle, 
   FolderX,
   Camera,
-  Layers
+  Layers,
+  RefreshCw
 } from 'lucide-react';
 import { Device, HistoryItem, ScreenId } from '../types';
-import { getHistory, clearHistory, removeHistoryItem } from '../services/historyStorage';
+import { getDeviceHistory, clearDeviceHistory, getProductFull, adaptBackendProductToDevice } from '../services/api';
 
 interface Screen13HistoryProps {
   onSelectDevice: (device: Device) => void;
@@ -30,38 +31,64 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [showClearModal, setShowClearModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const items = await getDeviceHistory(selectedCategory);
+      setHistoryItems(items);
+    } catch (err) {
+      console.warn('Erro ao carregar histórico:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setHistoryItems(getHistory());
-  }, []);
+    loadHistory();
+  }, [selectedCategory]);
 
-  const handleClearConfirm = () => {
-    clearHistory();
-    setHistoryItems([]);
-    setShowClearModal(false);
+  const handleClearConfirm = async () => {
+    try {
+      await clearDeviceHistory();
+      setHistoryItems([]);
+      setShowClearModal(false);
+    } catch (err) {
+      console.error('Erro ao apagar histórico:', err);
+    }
   };
 
-  const handleDeleteItem = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updated = removeHistoryItem(id);
-    setHistoryItems(updated);
+  const handleItemClick = async (item: HistoryItem) => {
+    if (item.device.dbId) {
+      try {
+        const res = await getProductFull(item.device.dbId);
+        if (res.produto) {
+          const fullDevice = adaptBackendProductToDevice(res.produto, item.pesquisaId, item.device.confidenceLevel);
+          onSelectDevice(fullDevice);
+          return;
+        }
+      } catch (err) {
+        console.warn('Não foi possível carregar produto completo via API (offline), abrindo dados locais:', err);
+      }
+    }
+    onSelectDevice(item.device);
   };
 
-  const categories = ['Todos', 'Áudio', 'Cabos & Conectores', 'Carregadores & Energia', 'TV & Vídeo'];
+  const categories = ['Todos', 'Áudio', 'Cabos & Conectores', 'Redes & Conectividade', 'Vestíveis & Saúde', 'Outros'];
 
   const filteredItems = historyItems.filter((item) => {
-    const matchesCategory = selectedCategory === 'Todos' || item.device.category === selectedCategory;
     const matchesSearch = 
       item.device.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
       item.device.popularName.toLowerCase().includes(searchFilter.toLowerCase()) ||
       item.device.category.toLowerCase().includes(searchFilter.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesSearch;
   });
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-10 space-y-6">
       
-      {/* Top Banner if Offline (RF-11) */}
+      {/* Top Banner if Offline (RF-11 / Requisito OFFLINE) */}
       {!isOnline && (
         <div className="bg-amber-50 rounded-2xl p-4 border-2 border-amber-300 text-amber-950 flex items-start gap-3 shadow-soft">
           <WifiOff className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
@@ -70,7 +97,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
               Você está navegando no Modo Offline (Sem Internet)
             </h4>
             <p className="text-xs sm:text-sm text-amber-900">
-              Você pode ler livremente todos os guias salvos no seu histórico abaixo! Novas fotos exigem reconexão à internet.
+              Exibindo histórico salvo localmente no seu navegador. Novas buscas fotográficas e cotações exigem conexão com a internet.
             </p>
           </div>
         </div>
@@ -88,7 +115,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
             </h1>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Seus aparelhos consultados ficam salvos neste dispositivo para você rever quando quiser.
+            Seus aparelhos consultados ficam salvos de forma segura para você rever quando quiser.
           </p>
         </div>
 
@@ -111,7 +138,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
             type="text"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            placeholder="Filtrar por nome do aparelho (ex: Fone, HDMI, Carregador...)"
+            placeholder="Filtrar por nome do aparelho (ex: Fone, HDMI, Roteador, Relógio...)"
             className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-300 focus:border-brand-blue text-sm font-medium outline-none"
           />
         </div>
@@ -135,7 +162,12 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
       </div>
 
       {/* History Items List */}
-      {filteredItems.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 text-slate-500 flex flex-col items-center gap-2">
+          <RefreshCw className="w-8 h-8 animate-spin text-brand-blue" />
+          <span>Carregando histórico do banco de dados...</span>
+        </div>
+      ) : filteredItems.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-4 max-w-md mx-auto">
           <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
             <FolderX className="w-8 h-8" />
@@ -147,7 +179,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               {searchFilter
                 ? 'Tente pesquisar com outras palavras.'
-                : 'Você ainda não possui aparelhos salvos no histórico.'}
+                : 'Você ainda não possui pesquisas salvas neste dispositivo.'}
             </p>
           </div>
           <button
@@ -163,7 +195,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              onClick={() => onSelectDevice(item.device)}
+              onClick={() => handleItemClick(item)}
               className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 hover:border-brand-blue shadow-soft hover:shadow-md transition cursor-pointer flex flex-col justify-between group"
             >
               <div className="flex gap-4">
@@ -177,13 +209,9 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-brand-purple">
                       {item.device.category}
                     </span>
-                    <button
-                      onClick={(e) => handleDeleteItem(item.id, e)}
-                      className="text-slate-400 hover:text-red-500 p-1 rounded transition"
-                      title="Excluir este item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      Confiança: {item.device.confidenceLevel}
+                    </span>
                   </div>
                   <h3 className="font-extrabold text-base text-slate-900 group-hover:text-brand-blue transition-colors line-clamp-1">
                     {item.device.name}
@@ -203,7 +231,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
                   <span>{item.searchedAt}</span>
                 </span>
                 <span className="font-bold text-brand-blue group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                  <span>Abrir Guia</span>
+                  <span>Abrir Guia Completo</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               </div>
@@ -225,7 +253,7 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
                 Tem certeza que deseja apagar?
               </h3>
               <p className="text-sm text-slate-600">
-                Essa ação não pode ser desfeita. Todos os guias e aparelhos salvos neste navegador serão removidos.
+                Essa ação não pode ser desfeita. Todas as pesquisas e conversas salvas para este dispositivo serão apagadas do banco de dados.
               </p>
             </div>
 

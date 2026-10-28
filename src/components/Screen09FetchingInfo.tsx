@@ -201,3 +201,4 @@ export const Screen09FetchingInfo: React.FC<Screen09FetchingInfoProps> = ({
     </div>
   );
 };
+

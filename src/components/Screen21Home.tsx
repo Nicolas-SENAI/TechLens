@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Device, ScreenId } from '../types';
 import { MOCK_DEVICES, SAMPLE_SEARCH_TERMS } from '../data/mockDevices';
+import { recordPrivacyConsent } from '../services/api';
 
 interface Screen21HomeProps {
   onStartAnalysis: (imageSrc: string, selectedDevice?: Device) => void;
@@ -45,6 +46,9 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
 
   const handleConsentAccept = () => {
     localStorage.setItem('techlens_privacy_consent_v1', 'true');
+    recordPrivacyConsent().catch(err => {
+      console.warn('Registro de aceite de privacidade em segundo plano falhou:', err);
+    });
     setShowPrivacyModal(false);
   };
 
@@ -452,3 +456,4 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
     </div>
   );
 };
+
