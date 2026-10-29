@@ -17,6 +17,55 @@ function parseDataUrl(dataUrl) {
 }
 
 /**
+ * Utilitário para extrair JSON de respostas do modelo (mesmo com cercas markdown)
+ */
+function extractJson(text) {
+  if (!text) return null;
+  const clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        const slice = clean.slice(firstBrace, lastBrace + 1);
+        return JSON.parse(slice);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Chamada à API Gemini com fallback automático entre os modelos mais rápidos e estáveis
+ */
+async function callGemini(genAI, contents) {
+  const models = [
+    'gemini-flash-lite-latest',
+    'gemini-flash-latest',
+    'gemini-2.5-flash-lite',
+    'gemini-3.8-flash'
+  ];
+  let lastError = null;
+
+  for (const m of models) {
+    try {
+      const model = genAI.getGenerativeModel({ model: m });
+      const res = await model.generateContent(contents);
+      const text = res.response.text();
+      if (text && text.trim()) return text;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[Gemini] Tentativa com modelo ${m} falhou:`, err.message);
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Catálogo expandido de imagens e categorias para enriquecer produtos conhecidos
  */
 const CATEGORY_IMAGE_MAP = {
@@ -410,8 +459,6 @@ export const iaService = {
     if (apiKey && apiKey.trim() && apiKey !== 'sua_chave_aqui') {
       try {
         const genAI = new GoogleGenerativeAI(apiKey.trim());
-        // Tenta flash 1.5 ou 2.0 (multimodal e ágil)
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         const promptInstrucao = `
 Você é o especialista do TechLens, um assistente inteligente projetado para pessoas leigas em tecnologia e idosos (WCAG AAA).
@@ -487,12 +534,8 @@ IMPORTANTE: Responda ESTRITAMENTE em formato JSON puro, sem blocos de código ma
           contents = [promptInstrucao, `Identifique o produto pesquisado pelo usuário: "${termo_digitado}"`];
         }
 
-        const result = await model.generateContent(contents);
-        const text = result.response.text();
-        
-        // Limpar possíveis delimitadores de markdown json
-        const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const geminiObj = JSON.parse(cleanJson);
+        const text = await callGemini(genAI, contents);
+        const geminiObj = extractJson(text);
 
         if (geminiObj && geminiObj.nome) {
           dadosProduto = {
@@ -631,7 +674,6 @@ IMPORTANTE: Responda ESTRITAMENTE em formato JSON puro, sem blocos de código ma
     if (apiKey && apiKey.trim() && apiKey !== 'sua_chave_aqui') {
       try {
         const genAI = new GoogleGenerativeAI(apiKey.trim());
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         const promptChat = `
 Você é o assistente carinhoso e paciente do aplicativo TechLens, conversando em português do Brasil com a Dona Maria (uma senhora de 68 anos, aposentada e com receio de quebrar aparelhos eletrônicos).
@@ -655,8 +697,7 @@ DIRETRIZES FUNDAMENTAIS:
 5. Termine com uma frase gentil perguntando se ela conseguiu entender ou se precisa de mais ajuda.
 `;
 
-        const chatResult = await model.generateContent(promptChat);
-        const respostaTexto = chatResult.response.text();
+        const respostaTexto = await callGemini(genAI, promptChat);
         if (respostaTexto && respostaTexto.trim()) {
           return respostaTexto.trim();
         }
