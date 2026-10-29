@@ -228,7 +228,8 @@ export async function sendChatMessage(pesquisaId: number, conteudo: string): Pro
 export function adaptBackendProductToDevice(
   prod: BackendProduct,
   pesquisaId?: number,
-  confianca: ConfidenceLevel = 'alta'
+  confianca: ConfidenceLevel = 'alta',
+  alternativasApi?: any[]
 ): Device {
   const specs: SimplifiedSpec[] = (prod.especificacoes || []).map((s) => ({
     label: s.termo,
@@ -257,13 +258,28 @@ export function adaptBackendProductToDevice(
     isEditorial: true
   }));
 
-  const alternatives: AlternativeDevice[] = (prod.comparacoes || []).map((c, idx) => ({
-    id: `comp-${idx}`,
-    name: c.produto_comparado_nome,
-    category: prod.categoria,
-    imageUrl: prod.imagem_url,
-    differenceNote: c.diferencas
-  }));
+  let alternatives: AlternativeDevice[] = [];
+  if (alternativasApi && alternativasApi.length > 0) {
+    alternatives = alternativasApi.map((alt, idx) => ({
+      id: alt.id ? String(alt.id) : `alt-${idx}`,
+      name: alt.nome || alt.name,
+      category: alt.categoria || alt.category || prod.categoria,
+      brand: alt.marca || alt.brand || prod.marca,
+      imageUrl: alt.imagem_url || alt.imageUrl || prod.imagem_url,
+      differenceNote: alt.diferenca_resumo || alt.differenceNote || 'Modelo com formato semelhante.',
+      confidenceScore: alt.certeza ? Number(alt.certeza) : (alt.confidenceScore || Math.max(45, 85 - idx * 8))
+    }));
+  } else if (prod.comparacoes && prod.comparacoes.length > 0) {
+    alternatives = prod.comparacoes.map((c, idx) => ({
+      id: `comp-${idx}`,
+      name: c.produto_comparado_nome,
+      category: prod.categoria,
+      brand: prod.marca,
+      imageUrl: prod.imagem_url,
+      differenceNote: c.diferencas,
+      confidenceScore: Math.max(45, 85 - idx * 8)
+    }));
+  }
 
   const lastCheckedDate = stores[0]?.consultadoEm 
     ? new Date(stores[0].consultadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })

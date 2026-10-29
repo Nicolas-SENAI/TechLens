@@ -114,6 +114,9 @@ export const Screen15Guide: React.FC<Screen15GuideProps> = ({
             <img 
               src={device.imageUrl} 
               alt={device.name} 
+              onError={(e) => {
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80';
+              }}
               className="w-full h-full object-cover" 
             />
             <div className="absolute top-3 left-3 bg-brand-green text-white text-xs font-black px-3 py-1 rounded-full shadow">

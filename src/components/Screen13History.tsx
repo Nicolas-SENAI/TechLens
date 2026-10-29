@@ -202,6 +202,9 @@ export const Screen13History: React.FC<Screen13HistoryProps> = ({
                 <img
                   src={item.device.imageUrl}
                   alt={item.device.name}
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80';
+                  }}
                   className="w-24 h-24 rounded-xl object-cover border border-slate-200 shrink-0 group-hover:scale-105 transition-transform"
                 />
                 <div className="space-y-1 flex-1">

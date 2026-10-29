@@ -125,8 +125,10 @@ export interface AlternativeDevice {
   id: string;
   name: string;
   category: string;
+  brand?: string;
   imageUrl: string;
   differenceNote: string;
+  confidenceScore?: number;
 }
 
 export interface Device {

@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { produtoRepository } from '../repositories/produtoRepository.js';
+import { imageSearchService } from './imageSearchService.js';
+import pool from '../config/database.js';
 
 /**
  * Utilitário para extrair base64 e mimetype de Data URL
@@ -444,6 +446,217 @@ function sintetizarProdutoPorTexto(termo) {
   };
 }
 
+/**
+ * Gera de 4 a 5 modelos parecidos reais da mesma categoria quando a IA não fornecer suficientes
+ */
+function gerarAlternativasFallback(dadosProduto) {
+  const nomeLower = (dadosProduto.nome || '').toLowerCase();
+  const catLower = (dadosProduto.categoria || '').toLowerCase();
+
+  // 1. Teclados e Periféricos
+  if (nomeLower.includes('teclado') || catLower.includes('teclado') || nomeLower.includes('keyboard')) {
+    return [
+      {
+        nome: 'Teclado Mecânico Machenike K500 B61',
+        marca: 'Machenike',
+        categoria: 'Teclados e Periféricos',
+        certeza: 85,
+        diferenca_resumo: 'Layout compacto 60% com 61 teclas e iluminação RGB customizável.'
+      },
+      {
+        nome: 'Teclado Mecânico Redragon Fizz Pro K616',
+        marca: 'Redragon',
+        categoria: 'Teclados e Periféricos',
+        certeza: 78,
+        diferenca_resumo: 'Conexão sem fio e cabo removível, carcaça branca e cinza.'
+      },
+      {
+        nome: 'Teclado Mecânico Sem Fio Royal Kludge RK61',
+        marca: 'Royal Kludge',
+        categoria: 'Teclados e Periféricos',
+        certeza: 72,
+        diferenca_resumo: 'Possui Bluetooth com chave física para alternar entre 3 aparelhos.'
+      },
+      {
+        nome: 'Teclado Mecânico Motospeed CK61',
+        marca: 'Motospeed',
+        categoria: 'Teclados e Periféricos',
+        certeza: 64,
+        diferenca_resumo: 'Switches mecânicos Outemu com som de clique bem audível.'
+      },
+      {
+        nome: 'Teclado Gamer HyperX Alloy Origins 60',
+        marca: 'HyperX',
+        categoria: 'Teclados e Periféricos',
+        certeza: 55,
+        diferenca_resumo: 'Estrutura reforçada em alumínio aeroespacial e teclas PBT double-shot.'
+      }
+    ];
+  }
+
+  // 2. Fones e Áudio
+  if (nomeLower.includes('fone') || catLower.includes('áudio') || catLower.includes('audio') || nomeLower.includes('headphone') || nomeLower.includes('tws')) {
+    return [
+      {
+        nome: 'Fone de Ouvido Sem Fio AKG N5 HYBRID TWS',
+        marca: 'AKG',
+        categoria: 'Áudio e Fones',
+        certeza: 88,
+        diferenca_resumo: 'Acompanha adaptador USB-C extra na caixinha de carregamento.'
+      },
+      {
+        nome: 'Fone de Ouvido JBL Live Pro 2 TWS',
+        marca: 'JBL',
+        categoria: 'Áudio e Fones',
+        certeza: 81,
+        diferenca_resumo: 'Haste cromada e estojo oval com recarga sem fio.'
+      },
+      {
+        nome: 'Fone de Ouvido Sem Fio Sony WF-1000XM5',
+        marca: 'Sony',
+        categoria: 'Áudio e Fones',
+        certeza: 73,
+        diferenca_resumo: 'Ponta de espuma especial de memória que veda todo o som externo.'
+      },
+      {
+        nome: 'Fone Sem Fio Samsung Galaxy Buds 2 Pro',
+        marca: 'Samsung',
+        categoria: 'Áudio e Fones',
+        certeza: 66,
+        diferenca_resumo: 'Formato bem arredondado sem haste e estojo quadrado fosco.'
+      },
+      {
+        nome: 'Fone de Ouvido Bluetooth Edifier W240TN',
+        marca: 'Edifier',
+        categoria: 'Áudio e Fones',
+        certeza: 56,
+        diferenca_resumo: 'Detalhes em anel metálico e corpo mais robusto nos ouvidos.'
+      }
+    ];
+  }
+
+  // 3. Smartphones e Celulares
+  if (catLower.includes('smart') || catLower.includes('celular') || nomeLower.includes('iphone') || nomeLower.includes('galaxy')) {
+    return [
+      {
+        nome: 'Apple iPhone 13 128GB',
+        marca: 'Apple',
+        categoria: 'Smartphones e Celulares',
+        certeza: 86,
+        diferenca_resumo: 'Câmeras traseiras posicionadas na diagonal e logotipo da maçã.'
+      },
+      {
+        nome: 'Samsung Galaxy A54 5G',
+        marca: 'Samsung',
+        categoria: 'Smartphones e Celulares',
+        certeza: 79,
+        diferenca_resumo: 'Três lentes verticais soltas sem módulo ao redor na traseira.'
+      },
+      {
+        nome: 'Motorola Moto G84 5G',
+        marca: 'Motorola',
+        categoria: 'Smartphones e Celulares',
+        certeza: 71,
+        diferenca_resumo: 'Acabamento traseiro em couro vegano com logotipo da Motorola no centro.'
+      },
+      {
+        nome: 'Xiaomi Redmi Note 13',
+        marca: 'Xiaomi',
+        categoria: 'Smartphones e Celulares',
+        certeza: 64,
+        diferenca_resumo: 'Bordas finas e tela bem ampla com furo central para a câmera frontal.'
+      },
+      {
+        nome: 'Samsung Galaxy S23',
+        marca: 'Samsung',
+        categoria: 'Smartphones e Celulares',
+        certeza: 55,
+        diferenca_resumo: 'Aparelho mais compacto com laterais em metal brilhante.'
+      }
+    ];
+  }
+
+  // 4. Cabos, Carregadores e Conectores
+  if (catLower.includes('cabo') || catLower.includes('conector') || catLower.includes('carregador') || nomeLower.includes('usb') || nomeLower.includes('hdmi')) {
+    return [
+      {
+        nome: 'Cabo USB-C para USB-C Reforçado Baseus 100W',
+        marca: 'Baseus',
+        categoria: 'Cabos e Conectores',
+        certeza: 88,
+        diferenca_resumo: 'Conector com visor digital de carregamento e pontas reforçadas.'
+      },
+      {
+        nome: 'Cabo Carregador Trançado Anker PowerLine',
+        marca: 'Anker',
+        categoria: 'Cabos e Conectores',
+        certeza: 80,
+        diferenca_resumo: 'Malha em nylon vermelho ou preto e fita de velcro para prender.'
+      },
+      {
+        nome: 'Cabo USB-C para Lightning Apple Original',
+        marca: 'Apple',
+        categoria: 'Cabos e Conectores',
+        certeza: 72,
+        diferenca_resumo: 'Uma ponta é oval USB-C e a outra tem pinos dourados achatados.'
+      },
+      {
+        nome: 'Carregador de Parede Rápido Samsung 25W USB-C',
+        marca: 'Samsung',
+        categoria: 'Carregadores e Energia',
+        certeza: 65,
+        diferenca_resumo: 'Corpo preto ou branco com logotipo da Samsung em relevo lateral.'
+      },
+      {
+        nome: 'Cabo HDMI 2.1 8K Ultra High Speed',
+        marca: 'Ugreen',
+        categoria: 'Cabos e Conectores',
+        certeza: 56,
+        diferenca_resumo: 'Plugue largo e achatado para conectar na televisão ou monitor.'
+      }
+    ];
+  }
+
+  // 5. Genérico
+  return [
+    {
+      nome: `Modelo Semelhante Série A (${dadosProduto.marca || 'Marca'})`,
+      marca: dadosProduto.marca || 'Marca 1',
+      categoria: dadosProduto.categoria,
+      certeza: 82,
+      diferenca_resumo: 'Versão com acabamento padrão e dimensões semelhantes.'
+    },
+    {
+      nome: `Modelo Concorrente Série B`,
+      marca: 'Marca Concorrente',
+      categoria: dadosProduto.categoria,
+      certeza: 75,
+      diferenca_resumo: 'Fabricado por marca rival com a mesma funcionalidade principal.'
+    },
+    {
+      nome: `Versão Pro Avançada`,
+      marca: dadosProduto.marca || 'Marca 2',
+      categoria: dadosProduto.categoria,
+      certeza: 68,
+      diferenca_resumo: 'Conta com recursos extras ou conectores adicionais na lateral.'
+    },
+    {
+      nome: `Versão Slim Compacta`,
+      marca: 'Marca Alternativa',
+      categoria: dadosProduto.categoria,
+      certeza: 60,
+      diferenca_resumo: 'Formato um pouco menor, mais leve para transporte.'
+    },
+    {
+      nome: `Modelo Anterior da Geração Passada`,
+      marca: dadosProduto.marca || 'Marca 3',
+      categoria: dadosProduto.categoria,
+      certeza: 52,
+      diferenca_resumo: 'Design da geração anterior com botões ligeiramente diferentes.'
+    }
+  ];
+}
+
 export const iaService = {
   /**
    * Identifica o produto via Gemini API (Multimodal / Texto)
@@ -503,14 +716,18 @@ IMPORTANTE: Responda ESTRITAMENTE em formato JSON puro, sem blocos de código ma
   ],
   "alternativas": [
     {
-      "nome": "Nome de outro produto semelhante que poderia ser confundido",
-      "marca": "Marca",
-      "categoria": "Categoria",
-      "imagem_url": "",
-      "diferenca_resumo": "Como diferenciar visualmente deste produto"
+      "nome": "Nome comercial do modelo alternativo (ex: se for um teclado 60%, retorne Machenike K500 B61, Redragon Fizz Pro K616, Royal Kludge RK61, etc.)",
+      "marca": "Marca do fabricante",
+      "categoria": "Categoria do produto",
+      "certeza": 82,
+      "diferenca_resumo": "Dica prática e leiga de como reconhecer este modelo em mãos caso a foto seja dele"
     }
   ]
 }
+
+ATENÇÃO CRUCIAL PARA AS ALTERNATIVAS:
+No array "alternativas", você DEVE RETORNAR ENTRE 4 E 5 MODELOS REAIS PARECIDOS da mesma categoria (concorrentes diretos ou formatos idênticos que o usuário pode ter em mãos caso o produto principal não seja exatamente o dele).
+Atribua a cada um o campo "certeza" (número de 45 a 90).
 `;
 
         let contents = [];
@@ -538,19 +755,26 @@ IMPORTANTE: Responda ESTRITAMENTE em formato JSON puro, sem blocos de código ma
         const geminiObj = extractJson(text);
 
         if (geminiObj && geminiObj.nome) {
+          // Busca de imagem nítida e real do produto identificado
+          const imagemPrincipal = await imageSearchService.buscarImagemProduto(
+            `${geminiObj.marca || ''} ${geminiObj.nome}`,
+            geminiObj.categoria || 'Eletrônicos'
+          );
+
           dadosProduto = {
             nome: geminiObj.nome,
             marca: geminiObj.marca || 'Marca Identificada',
             modelo: geminiObj.modelo || '',
             categoria: geminiObj.categoria || 'Eletrônicos',
-            imagem_url: geminiObj.imagem_url || CATEGORY_IMAGE_MAP[geminiObj.categoria] || 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
+            imagem_url: imagemPrincipal,
             resumo_simples: geminiObj.resumo_simples || 'Aparelho identificado com sucesso.',
             confianca: ['alta', 'media', 'baixa'].includes(geminiObj.confianca) ? geminiObj.confianca : 'alta',
             especificacoes: geminiObj.especificacoes || [],
             avaliacao_resumo: geminiObj.avaliacao || { pontos_positivos: [], pontos_atencao: [] },
             fontes: geminiObj.fontes || [],
             comparacoes: geminiObj.comparacoes || [],
-            precos: geminiObj.precos_estimados || []
+            precos: geminiObj.precos_estimados || [],
+            alternativas_raw: geminiObj.alternativas || []
           };
           confianca = dadosProduto.confianca;
         }
@@ -564,17 +788,23 @@ IMPORTANTE: Responda ESTRITAMENTE em formato JSON puro, sem blocos de código ma
       if (tipo_entrada === 'texto' && termo_digitado) {
         dadosProduto = sintetizarProdutoPorTexto(termo_digitado);
       } else if (tipo_entrada === 'foto') {
-        // Se foi enviado um termo digitado junto da foto (ex: ao clicar em um exemplo da tela)
         if (termo_digitado) {
           dadosProduto = sintetizarProdutoPorTexto(termo_digitado);
         } else {
-          // Identificação de foto sem chave configurada:
           dadosProduto = sintetizarProdutoPorTexto('fone bluetooth');
         }
       } else {
         dadosProduto = sintetizarProdutoPorTexto('cabo');
       }
       confianca = dadosProduto.confianca || 'alta';
+    }
+
+    // Garante que a imagem do produto seja nítida e real
+    if (!dadosProduto.imagem_url || dadosProduto.imagem_url.includes('unsplash')) {
+      dadosProduto.imagem_url = await imageSearchService.buscarImagemProduto(
+        `${dadosProduto.marca || ''} ${dadosProduto.nome}`,
+        dadosProduto.categoria
+      );
     }
 
     // 3. PERSISTÊNCIA NO MYSQL: REAPROVEITAR SE JÁ EXISTE OU CRIAR NOVO
@@ -598,27 +828,45 @@ IMPORTANTE: Responda ESTRITAMENTE em formato JSON puro, sem blocos de código ma
 
       produtoDb = await produtoRepository.findFullById(novoId);
     } else {
+      // Atualiza imagem no banco se a anterior for placeholder genérico
+      if ((!produtoDb.imagem_url || produtoDb.imagem_url.includes('unsplash')) && dadosProduto.imagem_url) {
+        try {
+          await pool.execute('UPDATE produto SET imagem_url = ? WHERE id = ?', [dadosProduto.imagem_url, produtoDb.id]);
+        } catch {}
+      }
       produtoDb = await produtoRepository.findFullById(produtoDb.id);
     }
 
-    // 4. OBTER ALTERNATIVAS DO BANCO
-    const todosProdutos = await produtoRepository.findAll();
-    const alternativas = todosProdutos
-      .filter(p => p.id !== produtoDb.id)
-      .slice(0, 2)
-      .map(p => ({
-        id: p.id,
-        nome: p.nome,
-        marca: p.marca,
-        categoria: p.categoria,
-        imagem_url: p.imagem_url,
-        diferenca_resumo: `Formato ou categoria diferente: pertence a ${p.categoria}.`
-      }));
+    // 4. OBTER DE 4 A 5 MODELOS PARECIDOS COM IMAGENS REAIS E CERTEZA
+    let rawAlternativas = dadosProduto.alternativas_raw || [];
+    if (!Array.isArray(rawAlternativas) || rawAlternativas.length < 4) {
+      rawAlternativas = gerarAlternativasFallback(dadosProduto);
+    }
+
+    const alternativasFormatadas = [];
+    const listaAlts = rawAlternativas.slice(0, 5);
+
+    for (let i = 0; i < listaAlts.length; i++) {
+      const alt = listaAlts[i];
+      const altImg = await imageSearchService.buscarImagemProduto(
+        `${alt.marca || ''} ${alt.nome}`,
+        alt.categoria || dadosProduto.categoria
+      );
+      alternativasFormatadas.push({
+        id: `alt-${i + 1}`,
+        nome: alt.nome,
+        marca: alt.marca || 'Marca Concorrente',
+        categoria: alt.categoria || dadosProduto.categoria,
+        imagem_url: altImg,
+        certeza: alt.certeza ? Number(alt.certeza) : Math.max(45, 88 - i * 8),
+        diferenca_resumo: alt.diferenca_resumo || `Modelo similar da categoria ${dadosProduto.categoria}.`
+      });
+    }
 
     return {
       produto: produtoDb,
       confianca,
-      alternativas
+      alternativas: alternativasFormatadas
     };
   },
 

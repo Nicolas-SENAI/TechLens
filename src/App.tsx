@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScreenId, Device, DiagnosticScenario } from './types';
+import { ScreenId, Device, DiagnosticScenario, AlternativeDevice } from './types';
 import { MOCK_DEVICES } from './data/mockDevices';
 import { Navbar } from './components/Navbar';
 import { Screen21Home } from './components/Screen21Home';
@@ -101,7 +101,8 @@ export const App: React.FC = () => {
       const adaptedDevice = adaptBackendProductToDevice(
         prodRes.produto,
         res.pesquisa_id,
-        res.confianca
+        res.confianca,
+        res.alternativas
       );
 
       setAnalyzedDevice(adaptedDevice);
@@ -146,7 +147,8 @@ export const App: React.FC = () => {
       const adaptedDevice = adaptBackendProductToDevice(
         prodRes.produto,
         res.pesquisa_id,
-        res.confianca
+        res.confianca,
+        res.alternativas
       );
 
       setActiveDevice(adaptedDevice);
@@ -189,25 +191,9 @@ export const App: React.FC = () => {
   };
 
   // Handler: Seleção de Alternativa (Baixa Certeza)
-  const handleSelectAlternative = async (altDevice: Device) => {
-    const targetDbId = altDevice.dbId || 1;
-    if (currentPesquisaId) {
-      try {
-        const res = await confirmSearch(currentPesquisaId, targetDbId);
-        if (res.produto) {
-          const updated = adaptBackendProductToDevice(res.produto, currentPesquisaId, 'alta');
-          setActiveDevice(updated);
-          setCapturedImage(updated.imageUrl);
-          setCurrentScreen('SCREEN_9');
-          return;
-        }
-      } catch (err) {
-        console.warn('Erro ao confirmar alternativa na API:', err);
-      }
-    }
-    setActiveDevice(altDevice);
-    setCapturedImage(altDevice.imageUrl);
-    setCurrentScreen('SCREEN_9');
+  const handleSelectAlternative = async (altDevice: AlternativeDevice | Device) => {
+    // Busca os dados reais completos do modelo alternativo escolhido pelo usuário
+    await handleDirectSearch(altDevice.name);
   };
 
   // Handler: Seleção de Item no Histórico
