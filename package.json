@@ -8,10 +8,12 @@
     "server": "node backend/server.js",
     "db:setup": "node backend/scripts/setup-db.js",
     "test:api": "node backend/test-endpoints.js",
+    "test:products": "node backend/scripts/test-real-products.js",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",

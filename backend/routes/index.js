@@ -34,3 +34,4 @@ router.get('/pesquisas/:id/mensagens', deviceIdMiddleware, chatController.listar
 router.post('/pesquisas/:id/mensagens', deviceIdMiddleware, chatController.enviarMensagem);
 
 export default router;
+

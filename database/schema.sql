@@ -175,3 +175,4 @@ CREATE TABLE `mensagem_chat` (
     FOREIGN KEY (`pesquisa_id`) REFERENCES `pesquisa` (`id`)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

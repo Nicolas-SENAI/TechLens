@@ -42,9 +42,9 @@ export const chatService = {
       throw err;
     }
 
-    // Buscar dados do produto para contexto da IA
+    // Buscar dados completos do produto para contexto enriquecido da IA
     const produto = pesquisa.produto_id 
-      ? await produtoRepository.findById(pesquisa.produto_id) 
+      ? await produtoRepository.findFullById(pesquisa.produto_id) 
       : null;
 
     // Buscar histórico de mensagens anteriores para contexto
@@ -77,3 +77,4 @@ export const chatService = {
     };
   }
 };
+

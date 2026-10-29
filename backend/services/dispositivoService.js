@@ -22,3 +22,4 @@ export const dispositivoService = {
     return dispositivoRepository.updatePrivacy(id);
   }
 };
+

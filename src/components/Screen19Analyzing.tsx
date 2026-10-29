@@ -4,47 +4,53 @@ import { Device } from '../types';
 
 interface Screen19AnalyzingProps {
   imageSrc: string;
-  targetDevice: Device;
+  identifiedDevice?: Device | null;
   onAnalysisComplete: (device: Device) => void;
   onCancel: () => void;
 }
 
 export const Screen19Analyzing: React.FC<Screen19AnalyzingProps> = ({
   imageSrc,
-  targetDevice,
+  identifiedDevice,
   onAnalysisComplete,
   onCancel,
 }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [step1Done, setStep1Done] = useState(false);
   const [step2Done, setStep2Done] = useState(false);
+  const [animationReady, setAnimationReady] = useState(false);
   const [scanMessage, setScanMessage] = useState('Verificando iluminação e nitidez da imagem...');
 
+  // Animação gradual com feedback amigável
   useEffect(() => {
-    // Step 1: Quality & Sharpness
     const timer1 = setTimeout(() => {
       setStep1Done(true);
       setCurrentStep(2);
-      setScanMessage('Analisando contornos, botões e pinos de conexão...');
-    }, 1500);
+      setScanMessage('Analisando contornos, botões e pinos de conexão com IA...');
+    }, 1200);
 
-    // Step 2: Visual Recognition
     const timer2 = setTimeout(() => {
       setStep2Done(true);
-      setScanMessage('Identificação concluída com sucesso!');
-    }, 3000);
-
-    // Final Transition
-    const timer3 = setTimeout(() => {
-      onAnalysisComplete(targetDevice);
-    }, 3500);
+      setScanMessage('Consultando dados reais e especificações...');
+      setAnimationReady(true);
+    }, 2400);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
-      clearTimeout(timer3);
     };
-  }, [targetDevice, onAnalysisComplete]);
+  }, []);
+
+  // Transição sincronizada: ocorre quando a animação mínima e o retorno da API terminam
+  useEffect(() => {
+    if (animationReady && identifiedDevice) {
+      setScanMessage('Aparelho identificado com sucesso!');
+      const transitionTimer = setTimeout(() => {
+        onAnalysisComplete(identifiedDevice);
+      }, 500);
+      return () => clearTimeout(transitionTimer);
+    }
+  }, [animationReady, identifiedDevice, onAnalysisComplete]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 sm:py-14 space-y-8">
@@ -141,7 +147,7 @@ export const Screen19Analyzing: React.FC<Screen19AnalyzingProps> = ({
                 2. Formato do Aparelho
               </h4>
               <p className="text-[11px] text-slate-500">
-                {step2Done ? 'Modelo identificado!' : 'Cruzando dados visuais...'}
+                {step2Done ? 'Modelo identificado!' : 'Cruzando dados com a IA...'}
               </p>
             </div>
           </div>
@@ -168,4 +174,3 @@ export const Screen19Analyzing: React.FC<Screen19AnalyzingProps> = ({
     </div>
   );
 };
-

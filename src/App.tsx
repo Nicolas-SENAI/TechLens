@@ -25,6 +25,7 @@ export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('SCREEN_21');
   const [activeDevice, setActiveDevice] = useState<Device>(MOCK_DEVICES[0]);
   const [capturedImage, setCapturedImage] = useState<string>(MOCK_DEVICES[0].imageUrl);
+  const [analyzedDevice, setAnalyzedDevice] = useState<Device | null>(null);
   const [currentPesquisaId, setCurrentPesquisaId] = useState<number | undefined>(undefined);
   
   // Accessibility states (WCAG AAA)
@@ -82,6 +83,7 @@ export const App: React.FC = () => {
     }
 
     setCapturedImage(imageSrc);
+    setAnalyzedDevice(null);
     setCurrentScreen('SCREEN_19');
 
     try {
@@ -102,17 +104,21 @@ export const App: React.FC = () => {
         res.confianca
       );
 
-      setActiveDevice(adaptedDevice);
+      setAnalyzedDevice(adaptedDevice);
     } catch (err) {
       console.warn('Erro ao conectar com API do backend, utilizando catálogo de contingência:', err);
       if (selectedDevice) {
-        setActiveDevice(selectedDevice);
+        setAnalyzedDevice(selectedDevice);
+      } else {
+        setDiagnosticScenario('dark_photo');
+        setCurrentScreen('SCREEN_7');
       }
     }
   };
 
   const handleAnalysisComplete = (identifiedDevice: Device) => {
     setActiveDevice(identifiedDevice);
+    setCapturedImage(identifiedDevice.imageUrl);
     if (identifiedDevice.confidenceLevel === 'alta') {
       setCurrentScreen('SCREEN_17');
     } else {
@@ -250,7 +256,7 @@ export const App: React.FC = () => {
         {currentScreen === 'SCREEN_19' && (
           <Screen19Analyzing
             imageSrc={capturedImage}
-            targetDevice={activeDevice}
+            identifiedDevice={analyzedDevice}
             onAnalysisComplete={handleAnalysisComplete}
             onCancel={() => setCurrentScreen('SCREEN_21')}
           />

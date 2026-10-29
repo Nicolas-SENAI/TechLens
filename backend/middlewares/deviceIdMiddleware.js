@@ -14,3 +14,4 @@ export function deviceIdMiddleware(req, res, next) {
   req.deviceId = deviceId.trim();
   next();
 }
+

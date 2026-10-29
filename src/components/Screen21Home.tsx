@@ -10,7 +10,9 @@ import {
   ArrowRight,
   RefreshCw,
   Info,
-  HelpCircle
+  HelpCircle,
+  VideoOff,
+  Loader2
 } from 'lucide-react';
 import { Device, ScreenId } from '../types';
 import { MOCK_DEVICES, SAMPLE_SEARCH_TERMS } from '../data/mockDevices';
@@ -30,7 +32,9 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'camera' | 'upload' | 'search'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isConnectingCamera, setIsConnectingCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraErrorType, setCameraErrorType] = useState<'not_found' | 'permission_denied' | 'in_use' | 'other' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -52,17 +56,31 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
     setShowPrivacyModal(false);
   };
 
-  // Camera Management
+  // Camera Management com detecção inteligente de hardware e permissões
   const startCamera = async () => {
+    setIsConnectingCamera(true);
     setCameraError(null);
+    setCameraErrorType(null);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Navegador sem suporte direto a câmera.');
+        throw new Error('Navegador sem suporte a acesso direto à câmera.');
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
+
+      let stream: MediaStream;
+      try {
+        // Tenta câmera traseira em celulares, mas com fallback suave para webcam normal de desktop
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+      } catch {
+        // Se a restrição específica falhar, tenta qualquer dispositivo de vídeo conectado
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -71,8 +89,23 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
       setIsCameraActive(true);
     } catch (err: any) {
       console.warn('Camera access issue:', err);
-      setCameraError('Não conseguimos abrir a câmera neste dispositivo. Você pode enviar uma foto da sua galeria ou usar os exemplos prontos abaixo!');
       setIsCameraActive(false);
+
+      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setCameraErrorType('not_found');
+        setCameraError('Nenhuma câmera ou webcam física foi encontrada conectada neste computador. Como você está usando um computador de mesa (desktop), é necessário plugar uma webcam USB. Você pode enviar uma foto pelo botão ao lado ou testar com os exemplos prontos!');
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraErrorType('permission_denied');
+        setCameraError('Permissão negada: o navegador ou as políticas do Windows bloquearam o acesso à câmera. Clique no ícone de cadeado na barra de endereços para liberar o acesso.');
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        setCameraErrorType('in_use');
+        setCameraError('A câmera está sendo utilizada por outro aplicativo no computador (como Teams, Meet ou Zoom). Feche o outro programa e tente novamente.');
+      } else {
+        setCameraErrorType('other');
+        setCameraError('Não foi possível iniciar a câmera neste momento. Você pode enviar uma foto da sua galeria ou usar os exemplos prontos abaixo!');
+      }
+    } finally {
+      setIsConnectingCamera(false);
     }
   };
 
@@ -97,7 +130,7 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
 
   // Capture frame from video
   const capturePhoto = () => {
-    if (videoRef.current) {
+    if (videoRef.current && isCameraActive) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth || 640;
       canvas.height = videoRef.current.videoHeight || 480;
@@ -106,11 +139,16 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         stopCamera();
-        onStartAnalysis(dataUrl, MOCK_DEVICES[0]);
+        onStartAnalysis(dataUrl);
       }
     } else {
-      // Fallback
-      onStartAnalysis(MOCK_DEVICES[0].imageUrl, MOCK_DEVICES[0]);
+      // Se a webcam física não estiver ativa, direciona para envio de foto ou abre seletor
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement | null;
+      if (fileInput) {
+        fileInput.click();
+      } else {
+        setActiveTab('upload');
+      }
     }
   };
 
@@ -121,7 +159,7 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          onStartAnalysis(reader.result, MOCK_DEVICES[1]);
+          onStartAnalysis(reader.result);
         }
       };
       reader.readAsDataURL(file);
@@ -137,7 +175,7 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          onStartAnalysis(reader.result, MOCK_DEVICES[2]);
+          onStartAnalysis(reader.result);
         }
       };
       reader.readAsDataURL(file);
@@ -235,24 +273,59 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
                     </span>
                   </div>
                 </>
+              ) : isConnectingCamera ? (
+                <div className="p-6 text-center text-slate-300 space-y-3 max-w-md animate-pulse">
+                  <Loader2 className="w-12 h-12 text-brand-blue animate-spin mx-auto" />
+                  <h3 className="text-lg font-bold text-white">Conectando à câmera...</h3>
+                  <p className="text-xs text-slate-400">Verificando dispositivos de vídeo e permissões do sistema.</p>
+                </div>
               ) : (
-                <div className="p-6 text-center text-slate-300 space-y-4 max-w-md">
+                <div className="p-6 text-center text-slate-300 space-y-4 max-w-lg">
                   <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
-                    <Camera className="w-8 h-8" />
+                    {cameraErrorType === 'not_found' ? (
+                      <VideoOff className="w-8 h-8 text-amber-400" />
+                    ) : (
+                      <Camera className="w-8 h-8" />
+                    )}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Visualização da Câmera</h3>
-                    <p className="text-sm text-slate-300 mt-1">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold text-white">
+                      {cameraErrorType === 'not_found'
+                        ? 'Nenhuma Webcam Encontrada'
+                        : cameraErrorType === 'permission_denied'
+                        ? 'Permissão de Câmera Bloqueada'
+                        : 'Visualização da Câmera'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                       {cameraError || 'Clique no botão abaixo para ligar a câmera do seu celular ou computador.'}
                     </p>
                   </div>
-                  <button
-                    onClick={startCamera}
-                    className="px-5 py-3 bg-brand-blue hover:bg-brand-blue-hover text-white rounded-lg font-bold text-sm inline-flex items-center gap-2 shadow-md min-h-[48px]"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Ligar Câmera Agora</span>
-                  </button>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                    <button
+                      onClick={startCamera}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-xs inline-flex items-center gap-2 border border-slate-700 min-h-[44px]"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Tentar Novamente</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('upload')}
+                      className="px-4 py-2.5 bg-brand-purple hover:bg-brand-purple-dark text-white rounded-lg font-bold text-xs inline-flex items-center gap-2 shadow min-h-[44px]"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Enviar Foto do PC</span>
+                    </button>
+
+                    <button
+                      onClick={() => onStartAnalysis(MOCK_DEVICES[0].imageUrl, MOCK_DEVICES[0])}
+                      className="px-4 py-2.5 bg-brand-blue hover:bg-brand-blue-hover text-white rounded-lg font-bold text-xs inline-flex items-center gap-2 shadow min-h-[44px]"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Testar com Exemplo</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -269,7 +342,7 @@ export const Screen21Home: React.FC<Screen21HomeProps> = ({
                 className="w-full sm:w-auto px-8 py-4 bg-brand-blue hover:bg-brand-blue-hover text-white text-lg font-extrabold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 min-h-[56px] active:scale-95"
               >
                 <Camera className="w-6 h-6" />
-                <span>Fotografar Aparelho</span>
+                <span>{isCameraActive ? 'Fotografar Aparelho' : 'Enviar Foto do Aparelho'}</span>
               </button>
             </div>
           </div>

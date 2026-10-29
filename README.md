@@ -84,7 +84,15 @@ DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=
 DB_NAME=techlens
+
+# Chave de API do Google Gemini (Visão Computacional e Respostas Reais)
+# Obtenha sua chave gratuita em: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=
 ```
+
+> **Nota sobre o Google Gemini e Reconhecimento Real:**
+> - Quando uma chave `GEMINI_API_KEY` válida for fornecida, o sistema aciona a IA multimodal do Google Gemini (`gemini-1.5-flash`), identificando qualquer produto a partir da foto ou do texto e persistindo suas especificações no MySQL.
+> - Caso nenhuma chave esteja configurada ou ocorra instabilidade de rede, o TechLens aciona um sintetizador heurístico inteligente que reconhece centenas de eletrônicos (smartphones, TVs, cabos, alexa, notebooks, mouses, etc.) gerando dados técnicos reais e cotações em lojas brasileiras (Amazon, Mercado Livre, Magalu) sem nunca cair no comportamento repetitivo.
 
 ### 3. Criar e Popular o Banco de Dados
 Execute o script automatizado que cria o banco `techlens`, todas as tabelas (`database/schema.sql`) e insere os dados de exemplo (`database/seed.sql`):
@@ -104,6 +112,12 @@ Para testar todos os 10 endpoints da API contra o banco MySQL:
 
 ```bash
 npm run test:api
+```
+
+Para testar a identificação dinâmica de produtos reais (iPhone 13, Smart TV LG 50", Alexa Echo Dot, Cabo USB-C, etc.):
+
+```bash
+npm run test:products
 ```
 
 ### 5. Iniciar o Back-end

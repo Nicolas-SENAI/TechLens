@@ -89,3 +89,4 @@ export const pesquisaRepository = {
     return result.affectedRows;
   }
 };
+

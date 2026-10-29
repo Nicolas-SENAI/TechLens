@@ -184,3 +184,4 @@ INSERT INTO `mensagem_chat` (`pesquisa_id`, `autor`, `conteudo`, `criado_em`) VA
 (1, 'ia', 'Pode ficar tranquilo(a)! A voltagem do fone é minúscula (cerca de 3.7 volts), totalmente inofensiva para o corpo humano. Apenas evite molhar o fone na chuva forte para não danificar o aparelho por dentro.', NOW() - INTERVAL 2 DAY + INTERVAL 3 MINUTE),
 (1, 'usuario', 'Como sei se a caixinha terminou de carregar na tomada?', NOW() - INTERVAL 2 DAY + INTERVAL 5 MINUTE),
 (1, 'ia', 'A caixinha tem uma luzinha de LED. Enquanto ela estiver piscando, está carregando. Quando a luz parar de piscar e ficar acesa direto (ou verde), a carga já está 100% pronta e você pode tirar da tomada!', NOW() - INTERVAL 2 DAY + INTERVAL 6 MINUTE);
+

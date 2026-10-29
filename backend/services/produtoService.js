@@ -35,3 +35,4 @@ export const produtoService = {
     return produtoRepository.findAll();
   }
 };
+

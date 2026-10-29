@@ -16,3 +16,4 @@ const pool = mysql.createPool({
 });
 
 export default pool;
+

@@ -394,3 +394,4 @@ function generateStepsForCategory(categoria: string, nome: string) {
     }
   ];
 }
+

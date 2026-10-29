@@ -27,3 +27,4 @@ export const dispositivoRepository = {
     return this.findById(id);
   }
 };
+

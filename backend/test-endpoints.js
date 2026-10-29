@@ -146,3 +146,4 @@ runTests().catch(err => {
   console.error('\n❌ Erro durante a execução dos testes:', err);
   process.exit(1);
 });
+
